@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  client
+}
+
+enum FlowerKind {
+  garden
+  indoor
+}
+
+enum Season {
+  spring
+  summer
+  autumn
+  winter
+}
+
+enum GrowingType {
+  greenhouse
+  orangery
+  open_ground
+}
+
+enum OrderStatus {
+  pending
+  shipped
+  delivered
+  cancelled
+}
+
+enum TagType {
+  color
+  event
+  quantity
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String
+  name      String
+  phone     String?
+  role      Role       @default(client)
+  createdAt DateTime   @default(now()) @map("created_at")
+  favorites Favorite[]
+  cartItems CartItem[]
+  orders    Order[]
+
+  @@map("users")
+}
+
+model Flower {
+  id          String           @id @default(uuid())
+  name        String
+  kind        FlowerKind       @map("kind")
+  season      Season
+  country     String
+  price       Float
+  growingType GrowingType      @map("growing_type")
+  imageUrl    String           @map("image_url")
+  description String
+  isPopular   Boolean          @default(false) @map("is_popular")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  varieties   Variety[]
+  suppliers   FlowerSupplier[]
+  sellers     FlowerSeller[]
+  categories  FlowerCategory[]
+  tags        FlowerTag[]
+  favorites   Favorite[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@map("flowers")
+}
+
+model Variety {
+  id       String @id @default(uuid())
+  name     String
+  flowerId String @map("flower_id")
+  flower   Flower @relation(fields: [flowerId], references: [id], onDelete: Cascade)
+
+  @@map("varieties")
+}
+
+model Supplier {
+  id           String           @id @default(uuid())
+  name         String
+  businessType String           @map("business_type")
+  address      String
+  flowers      FlowerSupplier[]
+
+  @@map("suppliers")
+}
+
+model Seller {
+  id         String         @id @default(uuid())
+  name       String
+  address    String
+  flowers    FlowerSeller[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("sellers")
+}
+
+model FlowerSupplier {
+  flowerId   String   @map("flower_id")
+  supplierId String   @map("supplier_id")
+  flower     Flower   @relation(fields: [flowerId], references: [id], onDelete: Cascade)
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@id([flowerId, supplierId])
+  @@map("flower_suppliers")
+}
+
+model FlowerSeller {
+  flowerId String @map("flower_id")
+  sellerId String @map("seller_id")
+  flower   Flower @relation(fields: [flowerId], references: [id], onDelete: Cascade)
+  seller   Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@id([flowerId, sellerId])
+  @@map("flower_sellers")
+}
+
+model Category {
+  id      String           @id @default(uuid())
+  name    String
+  slug    String           @unique
+  flowers FlowerCategory[]
+
+  @@map("categories")
+}
+
+model FlowerCategory {
+  flowerId   String   @map("flower_id")
+  categoryId String   @map("category_id")
+  flower     Flower   @relation(fields: [flowerId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([flowerId, categoryId])
+  @@map("flower_categories")
+}
+
+model Tag {
+  id     String      @id @default(uuid())
+  name   String
+  type   TagType
+  flowers FlowerTag[]
+
+  @@unique([name, type])
+  @@map("tags")
+}
+
+model FlowerTag {
+  flowerId String @map("flower_id")
+  tagId    String @map("tag_id")
+  flower   Flower @relation(fields: [flowerId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([flowerId, tagId])
+  @@map("flower_tags")
+}
+
+model Favorite {
+  id       String @id @default(uuid())
+  userId   String @map("user_id")
+  flowerId String @map("flower_id")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flower   Flower @relation(fields: [flowerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, flowerId])
+  @@map("favorites")
+}
+
+model CartItem {
+  id       String @id @default(uuid())
+  userId   String @map("user_id")
+  flowerId String @map("flower_id")
+  sellerId String @map("seller_id")
+  quantity Int    @default(1)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flower   Flower @relation(fields: [flowerId], references: [id], onDelete: Cascade)
+  seller   Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, flowerId, sellerId])
+  @@map("cart_items")
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  total           Float
+  status          OrderStatus @default(pending)
+  customerName    String      @map("customer_name")
+  deliveryAddress String      @map("delivery_address")
+  phone           String
+  createdAt       DateTime    @default(now()) @map("created_at")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String @id @default(uuid())
+  orderId      String @map("order_id")
+  flowerId     String @map("flower_id")
+  sellerId     String @map("seller_id")
+  quantity     Int
+  priceAtTime  Float  @map("price_at_time")
+  order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  flower       Flower @relation(fields: [flowerId], references: [id])
+  seller       Seller @relation(fields: [sellerId], references: [id])
+
+  @@map("order_items")
+}
